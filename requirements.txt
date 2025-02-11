@@ -3,7 +3,7 @@ wikipedia-api
 google-generativeai
 pdfplumber
 pytesseract
-opencv-python
+opencv-python-headless
 numpy
 faiss-cpu
 sentence-transformers
