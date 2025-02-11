@@ -2,7 +2,6 @@ import streamlit as st
 import wikipediaapi
 import requests
 import json
-import os
 import pytesseract
 import cv2
 import pdfplumber
@@ -21,12 +20,11 @@ import numpy as np
 # Set up Wikipedia API
 wiki_wiki = wikipediaapi.Wikipedia(user_agent='DeepResearchBot', language='en')
 
-# Set up Google Search API Key
-SERPAPI_KEY = "7faf237ab111d4ae788faac02fe9f1ff94239a2e01f6885432ee72d2da68703e"
+# Load API Keys from Streamlit Secrets
+GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+SERPAPI_KEY = st.secrets["SERPAPI_KEY"]
 
-# Ensure Gemini API Key is set
-os.environ["GEMINI_API_KEY"] = os.getenv("GEMINI_API_KEY", "AIzaSyBzT2kIMz5vyqhWImeau4m-59GFSYSFAIk")
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key=GEMINI_API_KEY)
 
 # Use Free HuggingFace Embeddings Instead of OpenAI
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
