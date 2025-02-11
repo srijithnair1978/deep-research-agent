@@ -6,7 +6,7 @@ import pytesseract
 import cv2
 import pdfplumber
 import google.generativeai as genai
-from langchain.embeddings import HuggingFaceEmbeddings  # Using free embeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings  # Updated import
 from langchain.chains import RetrievalQA
 from langchain.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
