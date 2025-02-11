@@ -3,7 +3,6 @@ import wikipediaapi
 import requests
 import json
 import easyocr
-import cv2
 import pdfplumber
 import google.generativeai as genai
 from langchain_community.embeddings import HuggingFaceEmbeddings  # Updated import
@@ -64,6 +63,8 @@ reader = easyocr.Reader(["en"])  # Initialize OCR reader
 def extract_text_from_image(image_file):
     try:
         image_bytes = np.frombuffer(image_file.read(), np.uint8)
+        if image_bytes.size == 0:
+            return "Error processing image: No image data found."
         extracted_text = reader.readtext(image_bytes, detail=0)
         return " ".join(extracted_text) if extracted_text else "No readable text found in image."
     except Exception as e:
