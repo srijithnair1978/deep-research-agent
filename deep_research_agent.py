@@ -5,6 +5,7 @@ import json
 import easyocr
 import pdfplumber
 import google.generativeai as genai
+import cv2  # Ensure OpenCV is imported
 from langchain_community.embeddings import HuggingFaceEmbeddings  # Updated import
 from langchain.chains import RetrievalQA
 from langchain.document_loaders import TextLoader
