@@ -2,10 +2,8 @@ import streamlit as st
 import wikipediaapi
 import requests
 import json
-import easyocr
 import pdfplumber
 import google.generativeai as genai
-import cv2  # Ensure OpenCV is imported
 from langchain_community.embeddings import HuggingFaceEmbeddings  # Updated import
 from langchain.chains import RetrievalQA
 from langchain.document_loaders import TextLoader
@@ -59,21 +57,6 @@ def extract_text_from_pdf(pdf_file):
                 text += extracted_text + "\n"
     return text if text else "No readable text found in PDF."
 
-# Function to extract text from images and analyze it using easyOCR
-reader = easyocr.Reader(["en"])  # Initialize OCR reader
-def extract_text_from_image(image_file):
-    try:
-        image_bytes = np.frombuffer(image_file.read(), np.uint8)
-        if image_bytes.size == 0:
-            return "Error processing image: No image data found."
-        image = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
-        if image is None:
-            return "Error processing image: Unable to decode image."
-        extracted_text = reader.readtext(image, detail=0)
-        return " ".join(extracted_text) if extracted_text else "No readable text found in image."
-    except Exception as e:
-        return f"Error processing image: {str(e)}"
-
 # Function to provide explanation from extracted text
 def analyze_text_with_gemini(text):
     if not text.strip():
@@ -97,10 +80,10 @@ def get_ai_response(query):
 
 # Streamlit UI
 st.title("Deep Research AI Agent")
-st.write("Ask questions and get answers from Wikipedia, Google, PDFs, and Images!")
+st.write("Ask questions and get answers from Wikipedia, Google, and PDFs!")
 
 query = st.text_input("Enter your research question:")
-search_type = st.radio("Select search source:", ["Wikipedia", "Google", "Upload PDF", "Upload Image"])
+search_type = st.radio("Select search source:", ["Wikipedia", "Google", "Upload PDF"])
 
 if search_type == "Wikipedia" and query:
     result = search_wikipedia(query)
@@ -121,11 +104,3 @@ elif search_type == "Upload PDF":
         docs = process_and_store(pdf_text)
         st.write("Extracted Text from PDF:", pdf_text[:1000])
         st.write("AI Explanation:", analyze_text_with_gemini(pdf_text))
-
-elif search_type == "Upload Image":
-    image_file = st.file_uploader("Upload an Image", type=["jpg", "png", "jpeg"])
-    if image_file:
-        image_text = extract_text_from_image(image_file)
-        docs = process_and_store(image_text)
-        st.write("Extracted Text from Image:", image_text[:1000])
-        st.write("AI Explanation:", analyze_text_with_gemini(image_text))
