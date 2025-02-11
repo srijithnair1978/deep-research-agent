@@ -2,7 +2,7 @@ import streamlit as st
 import wikipediaapi
 import requests
 import json
-import pytesseract
+import easyocr
 import cv2
 import pdfplumber
 import google.generativeai as genai
@@ -59,12 +59,13 @@ def extract_text_from_pdf(pdf_file):
                 text += extracted_text + "\n"
     return text if text else "No readable text found in PDF."
 
-# Function to extract text from images and analyze it
+# Function to extract text from images and analyze it using easyOCR
+reader = easyocr.Reader(["en"])  # Initialize OCR reader
 def extract_text_from_image(image_file):
     try:
-        image = cv2.imdecode(np.frombuffer(image_file.read(), np.uint8), cv2.IMREAD_COLOR)
-        extracted_text = pytesseract.image_to_string(image)
-        return extracted_text if extracted_text.strip() else "No readable text found in image."
+        image_bytes = np.frombuffer(image_file.read(), np.uint8)
+        extracted_text = reader.readtext(image_bytes, detail=0)
+        return " ".join(extracted_text) if extracted_text else "No readable text found in image."
     except Exception as e:
         return f"Error processing image: {str(e)}"
 
