@@ -65,7 +65,10 @@ def extract_text_from_image(image_file):
         image_bytes = np.frombuffer(image_file.read(), np.uint8)
         if image_bytes.size == 0:
             return "Error processing image: No image data found."
-        extracted_text = reader.readtext(image_bytes, detail=0)
+        image = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
+        if image is None:
+            return "Error processing image: Unable to decode image."
+        extracted_text = reader.readtext(image, detail=0)
         return " ".join(extracted_text) if extracted_text else "No readable text found in image."
     except Exception as e:
         return f"Error processing image: {str(e)}"
