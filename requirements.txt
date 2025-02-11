@@ -8,3 +8,4 @@ numpy
 faiss-cpu
 sentence-transformers
 google-search-results
+langchain
