@@ -2,7 +2,6 @@ streamlit
 wikipedia-api
 google-generativeai
 pdfplumber
-pytesseract
 opencv-python-headless
 numpy
 faiss-cpu
@@ -10,3 +9,4 @@ sentence-transformers
 google-search-results
 langchain
 langchain-community
+easyocr  # <-- Added easyOCR
