@@ -1,0 +1,10 @@
+streamlit
+wikipedia-api
+google-generativeai
+pdfplumber
+pytesseract
+opencv-python
+numpy
+faiss-cpu
+sentence-transformers
+google-search-results
