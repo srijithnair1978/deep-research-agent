@@ -13,4 +13,6 @@ easyocr  # <-- Added easyOCR
 python-docx
 drawsvg
 cairosvg
+pymupdf
+
 
