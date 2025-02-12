@@ -1,6 +1,5 @@
 streamlit
 wikipedia-api
-google-generativeai
 pdfplumber
 opencv-python-headless
 numpy
@@ -14,5 +13,13 @@ python-docx
 drawsvg
 cairosvg
 pymupdf
+streamlit
+wikipedia-api
+google-api-python-client
+requests
+fitz
+PyMuPDF
+graphviz
+docx
 
 
