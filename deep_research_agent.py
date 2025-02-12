@@ -14,6 +14,7 @@ from langchain.docstore.in_memory import InMemoryDocstore
 from serpapi import GoogleSearch
 import faiss
 import numpy as np
+from docx import Document
 
 # Set up Wikipedia API
 wiki_wiki = wikipediaapi.Wikipedia(user_agent='DeepResearchBot', language='en')
@@ -47,6 +48,12 @@ def search_google(query):
     results = search.get_dict()
     return "\n".join([r['snippet'] for r in results.get("organic_results", [])[:5]]) if results else "No results found."
 
+# Function to get search results using Gemini API
+def search_gemini(query):
+    model = genai.GenerativeModel("gemini-pro")
+    response = model.generate_content(f"Search and summarize results for: {query}")
+    return response.text
+
 # Function to extract text from PDF and analyze it
 def extract_text_from_pdf(pdf_file):
     text = ""
@@ -72,35 +79,39 @@ def process_and_store(text):
     vectorstore.add_texts([text])
     return docs
 
-# Function to get AI-generated response using Gemini API
-def get_ai_response(query):
-    model = genai.GenerativeModel("gemini-pro")
-    response = model.generate_content(query)
-    return response.text
+# Function to generate a downloadable Word document
+def generate_word_document(content, filename="output.docx"):
+    doc = Document()
+    doc.add_paragraph(content)
+    doc.save(filename)
+    return filename
 
 # Streamlit UI
-st.title("Deep Research AI Agent")
-st.write("Ask questions and get answers from Wikipedia, Google, and PDFs!")
+st.title("Deep Research AI Agent created by Srijith Nair")
+st.write("Ask questions and get answers from Wikipedia, Google, Gemini, and PDFs!")
 
 query = st.text_input("Enter your research question:")
-search_type = st.radio("Select search source:", ["Wikipedia", "Google", "Upload PDF"])
+search_type = st.radio("Select search source:", ["Wikipedia", "Google", "Gemini AI Search", "Upload PDF"])
 
-if search_type == "Wikipedia" and query:
-    result = search_wikipedia(query)
-    docs = process_and_store(result)
-    st.write("Wikipedia Research:", result[:1000])
-    st.write("AI Analysis:", get_ai_response(query))
-
-elif search_type == "Google" and query:
-    result = search_google(query)
-    docs = process_and_store(result)
-    st.write("Google Search Summary:", result)
-    st.write("AI Analysis:", get_ai_response(query))
-
-elif search_type == "Upload PDF":
-    pdf_file = st.file_uploader("Upload a PDF file", type=["pdf"])
-    if pdf_file:
-        pdf_text = extract_text_from_pdf(pdf_file)
-        docs = process_and_store(pdf_text)
-        st.write("Extracted Text from PDF:", pdf_text[:1000])
-        st.write("AI Explanation:", analyze_text_with_gemini(pdf_text))
+if query:
+    if search_type == "Wikipedia":
+        result = search_wikipedia(query)
+    elif search_type == "Google":
+        result = search_google(query)
+    elif search_type == "Gemini AI Search":
+        result = search_gemini(query)
+    elif search_type == "Upload PDF":
+        pdf_file = st.file_uploader("Upload a PDF file", type=["pdf"])
+        if pdf_file:
+            result = extract_text_from_pdf(pdf_file)
+    
+    if result:
+        docs = process_and_store(result)
+        st.write(f"{search_type} Results:", result[:1000])
+        ai_analysis = get_ai_response(query)
+        st.write("AI Analysis:", ai_analysis)
+        
+        # Generate and provide download link for Word document
+        filename = generate_word_document(result + "\n\nAI Analysis:\n" + ai_analysis)
+        with open(filename, "rb") as file:
+            st.download_button(label="Download Results as Word Document", data=file, file_name=filename, mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
