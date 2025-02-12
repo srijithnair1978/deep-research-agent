@@ -1,6 +1,9 @@
+requests
+google-api-python-client
+google-generativeai
+pandas
 streamlit
 wikipedia
-requests
 pymupdf
 graphviz
 python-docx
