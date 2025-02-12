@@ -15,6 +15,8 @@ from serpapi import GoogleSearch
 import faiss
 import numpy as np
 from docx import Document
+import base64
+import drawsvg as draw  # Adding DrawSVG for diagrams
 
 # Set up Wikipedia API
 wiki_wiki = wikipediaapi.Wikipedia(user_agent='DeepResearchBot', language='en')
@@ -64,21 +66,6 @@ def extract_text_from_pdf(pdf_file):
                 text += extracted_text + "\n"
     return text if text else "No readable text found in PDF."
 
-# Function to provide explanation from extracted text
-def analyze_text_with_gemini(text):
-    if not text.strip():
-        return "No readable content found to analyze."
-    model = genai.GenerativeModel("gemini-pro")
-    response = model.generate_content(f"Analyze and explain this content: {text}")
-    return response.text if response else "No explanation generated."
-
-# Function to store and retrieve information
-def process_and_store(text):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=200)
-    docs = text_splitter.create_documents([text])
-    vectorstore.add_texts([text])
-    return docs
-
 # Function to generate a downloadable Word document
 def generate_word_document(content):
     filename = "output.docx"
@@ -87,16 +74,29 @@ def generate_word_document(content):
     doc.save(filename)
     return filename
 
+# Function to generate a diagram using drawsvg
+def generate_diagram(content):
+    d = draw.Drawing(800, 400, origin='center')
+    steps = content.split("->")
+    y = 100
+    for i, step in enumerate(steps):
+        d.append(draw.Text(step.strip(), 20, 0, y))
+        if i < len(steps) - 1:
+            d.append(draw.Line(0, y - 10, 0, y - 30, stroke='black', stroke_width=2))
+        y -= 50
+    d.save_svg("diagram.svg")
+    d.save_png("diagram.png")
+    return "diagram.png"
+
 # Streamlit UI
 st.title("Deep Research AI Agent created by Srijith Nair")
-st.write("Ask questions and get answers from Wikipedia, Google, Gemini, and PDFs!")
+st.write("Ask questions and get answers from Wikipedia, Google, Gemini, PDFs, and generate flowcharts!")
 
 query = st.text_input("Enter your research question:")
-search_type = st.radio("Select search source:", ["Wikipedia", "Google", "Gemini AI Search", "Upload PDF"])
+search_type = st.radio("Select search source:", ["Wikipedia", "Google", "Gemini AI Search", "Upload PDF", "Generate Visual Diagram"])
 
 if query:
     result = ""
-    ai_analysis = ""
     if search_type == "Wikipedia":
         result = search_wikipedia(query)
     elif search_type == "Google":
@@ -107,14 +107,19 @@ if query:
         pdf_file = st.file_uploader("Upload a PDF file", type=["pdf"])
         if pdf_file:
             result = extract_text_from_pdf(pdf_file)
+    elif search_type == "Generate Visual Diagram":
+        process_steps = st.text_area("Enter process steps (use '->' to link steps, e.g., 'Start -> Step 1 -> Step 2 -> End'):")
+        if st.button("Generate Diagram"):
+            diagram_file = generate_diagram(process_steps)
+            st.image(diagram_file, caption="Generated Diagram", use_column_width=True)
+            with open(diagram_file, "rb") as file:
+                st.download_button(label="Download Diagram as PDF", data=file, file_name="diagram.pdf", mime="application/pdf")
     
     if result:
-        docs = process_and_store(result)
         st.write(f"{search_type} Results:", result[:1000])
         ai_analysis = search_gemini(query)
         st.write("AI Analysis:", ai_analysis)
         
-        # Generate and provide download link for Word document
         full_content = result + "\n\nAI Analysis:\n" + ai_analysis
         filename = generate_word_document(full_content)
         with open(filename, "rb") as file:
