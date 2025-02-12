@@ -10,3 +10,4 @@ google-search-results
 langchain
 langchain-community
 easyocr  # <-- Added easyOCR
+python-docx
