@@ -1,112 +1,128 @@
 import streamlit as st
-import requests
 import wikipediaapi
+import requests
 import json
 import fitz  # PyMuPDF for PDF processing
-import googleapiclient.discovery
+import graphviz  # For diagram generation
 from docx import Document
-import os
-from diagrams import Diagram
-from diagrams.generic.blank import Blank
+from io import BytesIO
 
-# Set up Google API Keys
-GOOGLE_API_KEY = "YOUR_GOOGLE_API_KEY"
-GOOGLE_CSE_ID = "YOUR_GOOGLE_CSE_ID"
+# Set Streamlit Page Configuration
+st.set_page_config(page_title="Deep Research AI Agent", layout="wide")
+st.title("🔍 Deep Research AI Agent - Created by Srijith Nair")
 
-# Streamlit UI
-st.title("Deep Research AI Agent - Created by Srijith Nair")
-st.write("Perform deep research using Wikipedia, Google, PDFs, and auto-generated diagrams.")
+# Load API Keys from Streamlit Secrets
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+GOOGLE_CSE_ID = st.secrets["GOOGLE_CSE_ID"]
+GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 
-# Search Options
-search_option = st.radio("Select Search Type:", ["Wikipedia", "Google Search", "Upload PDF", "Generate Diagram"])
-
-# Function to search Wikipedia
+# Function to fetch Wikipedia Summary
 def search_wikipedia(query):
-    wiki = wikipediaapi.Wikipedia('en')
-    page = wiki.page(query)
-    
+    wiki_wiki = wikipediaapi.Wikipedia('en')
+    page = wiki_wiki.page(query)
     if page.exists():
         return page.summary
-    else:
-        return "No Wikipedia page found for this topic."
+    return "No Wikipedia page found for this topic."
 
-# Function to perform Google Search
+# Function to fetch Google Search Results
 def search_google(query):
-    service = googleapiclient.discovery.build("customsearch", "v1", developerKey=GOOGLE_API_KEY)
-    result = service.cse().list(q=query, cx=GOOGLE_CSE_ID, num=5).execute()
-    search_results = result.get("items", [])
+    search_url = f"https://www.googleapis.com/customsearch/v1?q={query}&key={GOOGLE_API_KEY}&cx={GOOGLE_CSE_ID}"
+    response = requests.get(search_url)
+    results = response.json()
     
-    return "\n".join([f"{i+1}. {item['title']}: {item['link']}" for i, item in enumerate(search_results)])
+    if "items" in results:
+        return "\n\n".join([f"- [{item['title']}]({item['link']})" for item in results["items"][:5]])
+    return "No Google search results found."
+
+# Function to fetch Gemini AI response
+def search_gemini(query):
+    url = f"https://generativelanguage.googleapis.com/v1beta2/models/gemini-pro:generateText?key={GEMINI_API_KEY}"
+    headers = {"Content-Type": "application/json"}
+    data = {"prompt": {"text": query}, "max_tokens": 200}
+    
+    response = requests.post(url, headers=headers, json=data)
+    result = response.json()
+    
+    if "candidates" in result:
+        return result["candidates"][0]["output"]
+    return "No Gemini AI response available."
 
 # Function to extract text from PDF
 def extract_text_from_pdf(pdf_file):
     text = ""
-    try:
-        doc = fitz.open(pdf_file)
+    with fitz.open(stream=pdf_file.read(), filetype="pdf") as doc:
         for page in doc:
-            text += page.get_text()
-    except Exception as e:
-        text = f"Error processing PDF: {e}"
-    return text
+            text += page.get_text("text") + "\n"
+    return text if text else "No text found in the PDF."
 
-# Function to generate a simple diagram
+# Function to generate process diagram using Graphviz
 def generate_diagram(diagram_text):
-    filename = "process_diagram"
-    with Diagram(filename, show=False):
-        Blank(diagram_text)
-    return filename + ".png"
+    dot = graphviz.Digraph()
+    steps = diagram_text.split("→")
+    
+    for i in range(len(steps) - 1):
+        dot.edge(steps[i].strip(), steps[i + 1].strip())
 
-# Function to save research to Word Document
+    output_path = "process_diagram"
+    dot.render(output_path, format="png", cleanup=True)
+    
+    return output_path + ".png"
+
+# Function to save output to Word
 def save_to_word(content):
     doc = Document()
-    doc.add_heading("Deep Research AI Agent Output", level=1)
+    doc.add_heading("Deep Research AI Output", level=1)
     doc.add_paragraph(content)
     
-    output_path = "research_output.docx"
-    doc.save(output_path)
+    file_stream = BytesIO()
+    doc.save(file_stream)
+    file_stream.seek(0)
     
-    return output_path
+    return file_stream
 
-# Handling different search options
-query = None
-if search_option == "Wikipedia":
-    query = st.text_input("Enter Wikipedia Topic:")
-    if st.button("Search Wikipedia"):
-        if query:
-            result = search_wikipedia(query)
-            st.write(result)
-            word_file = save_to_word(result)
-            st.download_button("Download as Word", data=open(word_file, "rb"), file_name="research_output.docx")
-        else:
-            st.warning("Please enter a topic.")
+# Streamlit Sidebar for Input
+st.sidebar.header("Search Options")
+search_type = st.sidebar.radio("Choose a Search Method:", ["Wikipedia", "Google", "Gemini AI", "Upload PDF", "Generate Diagram"])
 
-elif search_option == "Google Search":
-    query = st.text_input("Enter Google Search Query:")
-    if st.button("Search Google"):
-        if query:
-            result = search_google(query)
-            st.write(result)
-            word_file = save_to_word(result)
-            st.download_button("Download as Word", data=open(word_file, "rb"), file_name="research_output.docx")
-        else:
-            st.warning("Please enter a search query.")
+query = st.sidebar.text_input("Enter Search Query:")
 
-elif search_option == "Upload PDF":
-    pdf_file = st.file_uploader("Upload a PDF", type=["pdf"])
-    if pdf_file and st.button("Extract PDF Text"):
-        extracted_text = extract_text_from_pdf(pdf_file)
-        st.write(extracted_text)
-        word_file = save_to_word(extracted_text)
-        st.download_button("Download as Word", data=open(word_file, "rb"), file_name="research_output.docx")
+# Handling Different Search Options
+if search_type == "Wikipedia" and query:
+    result = search_wikipedia(query)
+    st.subheader("📖 Wikipedia Summary")
+    st.write(result)
+    st.download_button("Download as Word", save_to_word(result), file_name="wikipedia_summary.docx")
 
-elif search_option == "Generate Diagram":
-    process_steps = st.text_area("Enter diagram description (e.g., 'Step 1 → Step 2 → Step 3'):")
+elif search_type == "Google" and query:
+    result = search_google(query)
+    st.subheader("🌍 Google Search Results")
+    st.write(result, unsafe_allow_html=True)
+    st.download_button("Download as Word", save_to_word(result), file_name="google_search_results.docx")
+
+elif search_type == "Gemini AI" and query:
+    result = search_gemini(query)
+    st.subheader("🤖 Gemini AI Analysis")
+    st.write(result)
+    st.download_button("Download as Word", save_to_word(result), file_name="gemini_ai_analysis.docx")
+
+elif search_type == "Upload PDF":
+    uploaded_file = st.file_uploader("Upload a PDF File", type=["pdf"])
+    if uploaded_file:
+        result = extract_text_from_pdf(uploaded_file)
+        st.subheader("📄 Extracted Text from PDF")
+        st.write(result)
+        st.download_button("Download as Word", save_to_word(result), file_name="pdf_extracted_text.docx")
+
+elif search_type == "Generate Diagram":
+    process_steps = st.text_area("Enter process steps separated by '→' (Example: Step 1 → Step 2 → Step 3)")
     if st.button("Generate Diagram"):
         if process_steps:
             diagram_file = generate_diagram(process_steps)
-            st.image(diagram_file, caption="Generated Diagram", use_column_width=True)
-            st.download_button("Download Diagram", data=open(diagram_file, "rb"), file_name="process_diagram.png")
-        else:
-            st.warning("Please enter a diagram description.")
+            st.subheader("📊 Generated Process Diagram")
+            st.image(diagram_file)
+            with open(diagram_file, "rb") as file:
+                st.download_button("Download Diagram", file, file_name="process_diagram.png", mime="image/png")
 
-st.write("📢 **Note:** Ensure your API keys are set correctly in the script.")
+# Footer
+st.sidebar.markdown("---")
+st.sidebar.markdown("Developed by **Srijith Nair** 🚀")
