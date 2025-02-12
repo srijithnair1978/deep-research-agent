@@ -1,25 +1,6 @@
 streamlit
 wikipedia-api
-pdfplumber
-opencv-python-headless
-numpy
-faiss-cpu
-sentence-transformers
-google-search-results
-langchain
-langchain-community
-easyocr  # <-- Added easyOCR
-python-docx
-drawsvg
-cairosvg
-pymupdf
-streamlit
-wikipedia-api
-google-api-python-client
 requests
-fitz
-PyMuPDF
+pymupdf
 graphviz
-docx
-
-
+python-docx
