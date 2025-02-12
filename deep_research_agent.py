@@ -52,7 +52,7 @@ def search_google(query):
 def search_gemini(query):
     model = genai.GenerativeModel("gemini-pro")
     response = model.generate_content(f"Search and summarize results for: {query}")
-    return response.text
+    return response.text if response else "No results found."
 
 # Function to extract text from PDF and analyze it
 def extract_text_from_pdf(pdf_file):
@@ -70,7 +70,7 @@ def analyze_text_with_gemini(text):
         return "No readable content found to analyze."
     model = genai.GenerativeModel("gemini-pro")
     response = model.generate_content(f"Analyze and explain this content: {text}")
-    return response.text
+    return response.text if response else "No explanation generated."
 
 # Function to store and retrieve information
 def process_and_store(text):
@@ -86,12 +86,6 @@ def generate_word_document(content):
     doc.add_paragraph(content)
     doc.save(filename)
     return filename
-
-# Function to get AI-generated response using Gemini API
-def get_ai_response(query):
-    model = genai.GenerativeModel("gemini-pro")
-    response = model.generate_content(query)
-    return response.text
 
 # Streamlit UI
 st.title("Deep Research AI Agent created by Srijith Nair")
@@ -117,7 +111,7 @@ if query:
     if result:
         docs = process_and_store(result)
         st.write(f"{search_type} Results:", result[:1000])
-        ai_analysis = get_ai_response(query)
+        ai_analysis = search_gemini(query)
         st.write("AI Analysis:", ai_analysis)
         
         # Generate and provide download link for Word document
