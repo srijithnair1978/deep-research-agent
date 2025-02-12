@@ -80,11 +80,18 @@ def process_and_store(text):
     return docs
 
 # Function to generate a downloadable Word document
-def generate_word_document(content, filename="output.docx"):
+def generate_word_document(content):
+    filename = "output.docx"
     doc = Document()
     doc.add_paragraph(content)
     doc.save(filename)
     return filename
+
+# Function to get AI-generated response using Gemini API
+def get_ai_response(query):
+    model = genai.GenerativeModel("gemini-pro")
+    response = model.generate_content(query)
+    return response.text
 
 # Streamlit UI
 st.title("Deep Research AI Agent created by Srijith Nair")
@@ -94,6 +101,8 @@ query = st.text_input("Enter your research question:")
 search_type = st.radio("Select search source:", ["Wikipedia", "Google", "Gemini AI Search", "Upload PDF"])
 
 if query:
+    result = ""
+    ai_analysis = ""
     if search_type == "Wikipedia":
         result = search_wikipedia(query)
     elif search_type == "Google":
@@ -112,6 +121,7 @@ if query:
         st.write("AI Analysis:", ai_analysis)
         
         # Generate and provide download link for Word document
-        filename = generate_word_document(result + "\n\nAI Analysis:\n" + ai_analysis)
+        full_content = result + "\n\nAI Analysis:\n" + ai_analysis
+        filename = generate_word_document(full_content)
         with open(filename, "rb") as file:
             st.download_button(label="Download Results as Word Document", data=file, file_name=filename, mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
