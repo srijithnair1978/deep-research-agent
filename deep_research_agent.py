@@ -1,141 +1,109 @@
 import streamlit as st
-import wikipedia
+import wikipediaapi
 import requests
-import openai
-from googleapiclient.discovery import build
-from PyPDF2 import PdfReader
+import fitz  # PyMuPDF for PDF processing
 from docx import Document
-from PIL import Image, ImageDraw
-import io
+import base64
+from io import BytesIO
+from googleapiclient.discovery import build
+from diagrams import Diagram
+from diagrams.programming.language import Python
+import tempfile
 
-# --- SET PAGE TITLE ---
-st.set_page_config(page_title="Deep Research AI Agent created by Srijith Nair")
+# --- CONFIGURE PAGE ---
+st.set_page_config(page_title="Deep Research AI Agent by Srijith Nair", layout="wide")
 
-st.title("Deep Research AI Agent created by Srijith Nair")
+st.title("Deep Research AI Agent by Srijith Nair")
 
-# --- CONFIGURE API KEYS ---
-OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
-GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
-GOOGLE_CSE_ID = st.secrets["GOOGLE_CSE_ID"]
+# --- GOOGLE SEARCH SETTINGS ---
+GOOGLE_API_KEY = "your-google-api-key"
+GOOGLE_CSE_ID = "your-google-cse-id"
 
-# --- FUNCTION: Wikipedia Search ---
-def search_wikipedia(query):
-    try:
-        summary = wikipedia.summary(query, sentences=5)
-        return summary
-    except wikipedia.exceptions.DisambiguationError as e:
-        return f"Multiple results found. Try specifying: {e.options}"
-    except wikipedia.exceptions.PageError:
-        return "No Wikipedia page found."
+def google_search(query):
+    service = build("customsearch", "v1", developerKey=GOOGLE_API_KEY)
+    res = service.cse().list(q=query, cx=GOOGLE_CSE_ID).execute()
+    results = res.get("items", [])
+    return [f"{item['title']}: {item['link']}" for item in results]
 
-# --- FUNCTION: Google Search ---
-def search_google(query):
-    try:
-        service = build("customsearch", "v1", developerKey=GOOGLE_API_KEY)
-        result = service.cse().list(q=query, cx=GOOGLE_CSE_ID).execute()
-        search_results = result.get("items", [])
-        return "\n".join([f"{item['title']} - {item['link']}" for item in search_results[:5]])
-    except Exception as e:
-        return f"Error in Google Search: {str(e)}"
+# --- GEMINI SEARCH (REPLACE WITH YOUR OWN INTEGRATION) ---
+def gemini_search(query):
+    return f"🔍 Gemini search result for: {query} (Placeholder response)"
 
-# --- FUNCTION: Gemini AI Search ---
-def search_gemini(query):
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateText"
-    headers = {"Content-Type": "application/json"}
-    params = {"key": GEMINI_API_KEY}
-    data = {"prompt": {"text": query}, "temperature": 0.7}
+# --- WIKIPEDIA SEARCH ---
+def fetch_wikipedia_summary(topic):
+    wiki = wikipediaapi.Wikipedia("en")
+    page = wiki.page(topic)
+    return page.summary if page.exists() else "No Wikipedia content found."
 
-    response = requests.post(url, json=data, headers=headers, params=params)
-    if response.status_code == 200:
-        return response.json()["candidates"][0]["output"]
-    return "Error retrieving Gemini AI results."
-
-# --- FUNCTION: PDF Text Extraction ---
-def extract_text_from_pdf(uploaded_pdf):
-    pdf_reader = PdfReader(uploaded_pdf)
+# --- PDF FILE PROCESSING ---
+def extract_text_from_pdf(file):
     text = ""
-    for page in pdf_reader.pages:
-        text += page.extract_text() + "\n"
-    return text if text else "No text found in PDF."
+    pdf_document = fitz.open(stream=file.read(), filetype="pdf")
+    for page in pdf_document:
+        text += page.get_text()
+    return text
 
-# --- FUNCTION: Generate a Simple Diagram ---
+# --- GENERATE DIAGRAM (Diagrams.net / Draw.io Alternative) ---
 def generate_diagram(process_steps):
-    img_width, img_height = 800, 400
-    img = Image.new("RGB", (img_width, img_height), "white")
-    draw = ImageDraw.Draw(img)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
+        with Diagram("Process Flow", show=False, outformat="png") as diag:
+            Python("Start") >> Python(process_steps) >> Python("End")
+        temp_file_path = temp_file.name
+    return temp_file_path
 
-    y_position = 50
-    for step in process_steps:
-        draw.rectangle([(100, y_position), (700, y_position + 50)], outline="black", width=3)
-        draw.text((120, y_position + 15), step, fill="black")
-        y_position += 70
-
-    return img
-
-# --- FUNCTION: Convert Image to PDF ---
-def convert_image_to_pdf(img):
-    pdf_io = io.BytesIO()
-    img.convert("RGB").save(pdf_io, format="PDF")
-    pdf_io.seek(0)
-    return pdf_io
-
-# --- FUNCTION: Save Output to Word ---
-def save_to_word(text):
+# --- DOWNLOAD OUTPUT AS WORD DOCUMENT ---
+def generate_word_doc(content):
     doc = Document()
-    doc.add_paragraph(text)
-    word_io = io.BytesIO()
-    doc.save(word_io)
-    word_io.seek(0)
-    return word_io
+    doc.add_heading("Deep Research AI Agent - Analysis", level=1)
+    doc.add_paragraph(content)
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
 
-# --- SELECT FUNCTIONALITY ---
-st.sidebar.header("Select Research Mode")
-option = st.sidebar.radio(
-    "Choose an option:",
-    ("Wikipedia", "Google Search", "Gemini AI", "Upload PDF", "Generate Diagram")
-)
+# --- STREAMLIT APP INTERFACE ---
+option = st.radio("Select Research Method:", ["Google", "Wikipedia", "Gemini AI", "Upload PDF", "Generate Diagram"])
 
-# --- EXECUTE SELECTED FUNCTION ---
-if option == "Wikipedia":
-    query = st.text_input("Enter Wikipedia Search Query:")
-    if st.button("Search Wikipedia"):
-        result = search_wikipedia(query)
-        st.write(result)
-        st.download_button("Download as Word", data=save_to_word(result), file_name="wikipedia_result.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-
-elif option == "Google Search":
-    query = st.text_input("Enter Google Search Query:")
+if option == "Google":
+    query = st.text_input("Enter your search query:")
     if st.button("Search Google"):
-        result = search_google(query)
-        st.write(result)
-        st.download_button("Download as Word", data=save_to_word(result), file_name="google_result.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        if query:
+            results = google_search(query)
+            st.write("### Google Search Results:")
+            for res in results:
+                st.write(res)
+            st.download_button("Download as Word", generate_word_doc("\n".join(results)), file_name="Google_Results.docx")
+
+elif option == "Wikipedia":
+    topic = st.text_input("Enter a Wikipedia topic:")
+    if st.button("Search Wikipedia"):
+        if topic:
+            summary = fetch_wikipedia_summary(topic)
+            st.write("### Wikipedia Summary:")
+            st.write(summary)
+            st.download_button("Download as Word", generate_word_doc(summary), file_name="Wikipedia_Summary.docx")
 
 elif option == "Gemini AI":
-    query = st.text_input("Enter Gemini AI Query:")
-    if st.button("Ask Gemini AI"):
-        result = search_gemini(query)
-        st.write(result)
-        st.download_button("Download as Word", data=save_to_word(result), file_name="gemini_result.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    query = st.text_input("Enter your search query for Gemini AI:")
+    if st.button("Search Gemini"):
+        if query:
+            result = gemini_search(query)
+            st.write("### Gemini AI Response:")
+            st.write(result)
+            st.download_button("Download as Word", generate_word_doc(result), file_name="Gemini_AI_Response.docx")
 
 elif option == "Upload PDF":
-    uploaded_pdf = st.file_uploader("Upload a PDF File", type="pdf")
-    if uploaded_pdf is not None:
-        text = extract_text_from_pdf(uploaded_pdf)
-        st.text_area("Extracted Text", text, height=300)
-        st.download_button("Download as Word", data=save_to_word(text), file_name="pdf_text.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    uploaded_pdf = st.file_uploader("Upload a PDF file", type="pdf")
+    if uploaded_pdf and st.button("Extract Text"):
+        pdf_text = extract_text_from_pdf(uploaded_pdf)
+        st.write("### Extracted PDF Text:")
+        st.write(pdf_text)
+        st.download_button("Download as Word", generate_word_doc(pdf_text), file_name="PDF_Extracted_Text.docx")
 
 elif option == "Generate Diagram":
-    st.subheader("Generate a Process Flowchart")
-    process_input = st.text_area("Enter process steps (separate by commas)", "Step 1, Step 2, Step 3")
-
+    process_steps = st.text_area("Enter process steps (e.g., Step 1 → Step 2 → Step 3)")
     if st.button("Generate Diagram"):
-        process_steps = [step.strip() for step in process_input.split(",")]
-
         if process_steps:
-            diagram_image = generate_diagram(process_steps)
-            st.image(diagram_image, caption="Generated Process Flowchart", use_column_width=True)
-
-            # Convert and provide download button
-            pdf_file = convert_image_to_pdf(diagram_image)
-            st.download_button(label="Download as PDF", data=pdf_file, file_name="flowchart.pdf", mime="application/pdf")
+            diagram_file_path = generate_diagram(process_steps)
+            with open(diagram_file_path, "rb") as file:
+                st.download_button("Download Diagram (PNG)", file, file_name="Process_Diagram.png")
