@@ -10,11 +10,11 @@ import base64
 OPENAI_API_KEY = st.secrets["openai"]["api_key"]
 
 def chat_with_openai(prompt):
-    """Fetch response from OpenAI GPT using API 1.0.0 Interface."""
+    """Fetch response from OpenAI GPT-3.5-turbo."""
     try:
         client = openai.OpenAI(api_key=OPENAI_API_KEY)
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",  # Using GPT-3.5-turbo instead of GPT-4
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message.content.strip()
@@ -54,9 +54,9 @@ def generate_diagram(input_text):
     """Generate a diagram using Draw.io (Diagrams.net) and export as a valid PDF."""
     try:
         diagram_svg = f"""
-        <svg width="200" height="100" xmlns="http://www.w3.org/2000/svg">
-            <rect width="200" height="100" style="fill:lightblue;stroke:black;stroke-width:2" />
-            <text x="50" y="50" font-size="20" fill="black">{input_text}</text>
+        <svg width="400" height="200" xmlns="http://www.w3.org/2000/svg">
+            <rect width="400" height="200" style="fill:lightblue;stroke:black;stroke-width:3" />
+            <text x="150" y="100" font-size="20" fill="black">{input_text}</text>
         </svg>
         """
 
