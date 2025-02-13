@@ -6,3 +6,4 @@ wikipedia
 graphviz
 reportlab  
 PyMuPDF
+PyPDF2
