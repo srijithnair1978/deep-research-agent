@@ -45,6 +45,14 @@ def search_wikipedia(query):
     except wikipedia.exceptions.PageError:
         return "No Wikipedia page found."
 
+# ✅ Function to extract text from a PDF
+def extract_text_from_pdf(pdf_file):
+    doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
+    text = ""
+    for page in doc:
+        text += page.get_text()
+    return text if text else "No readable text found in the PDF."
+
 # ✅ Function to create a PDF report
 def generate_pdf(content):
     doc = Document()
@@ -83,16 +91,6 @@ if st.button("Ask Gemini AI"):
     gemini_result = search_gemini(query)
     st.write(gemini_result)
 
-# ✅ PDF Download Option
-if st.button("Download as Word Document"):
-    content = f"Wikipedia: {search_wikipedia(query)}\n\nGoogle: {search_google(query)}\n\nGemini AI: {search_gemini(query)}"
-    pdf_path = generate_pdf(content)
-    with open(pdf_path, "rb") as file:
-        st.download_button("Download Report", file, file_name="research_report.pdf")
-
-# ✅ Diagram Generation Option
-process_steps = st.text_area("Enter process steps (one per line):").split("\n")
-if st.button("Generate Diagram"):
-    diagram_file = generate_diagram(process_steps)
-    with open(diagram_file, "rb") as file:
-        st.download_button("Download Process Diagram", file, file_name="process_diagram.pdf")
+# ✅ PDF Upload & Analysis
+uploaded_file = st.file_uploader("Upload a PDF for Analysis", type=["pdf"])
+if
