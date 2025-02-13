@@ -1,5 +1,5 @@
 streamlit
-openai
+openai==1.2.0
 pymupdf
 requests
 wikipedia
