@@ -5,8 +5,8 @@ import wikipedia
 from fpdf import FPDF
 import base64
 
-# 🔹 Manually define Gemini API Key here
-GEMINI_API_KEY = "AIzaSyCyn5LuSyrKuXMKsjNsvcP03meyhCuEMO4"
+# 🔹 Manually define Gemini API Key here (Remove st.secrets)
+GEMINI_API_KEY = "AIzaSyCyn5LuSyrKuXMKsjNsvcP03meyhCuEMO4"  # Replace with your Gemini API Key
 
 # Function to query Gemini AI
 def query_gemini_ai(prompt):
@@ -49,17 +49,6 @@ def search_wikipedia(query):
     except Exception as e:
         return f"❌ Wikipedia Error: {str(e)}"
 
-# Function to generate and display diagrams from diagrams.net
-def generate_diagram(data):
-    diagram_url = "https://www.diagrams.net/diagram-export"
-    payload = {"format": "png", "data": data}
-    response = requests.post(diagram_url, json=payload)
-
-    if response.status_code == 200:
-        return response.content
-    else:
-        return None
-
 # Function to read and analyze PDF
 def analyze_pdf(uploaded_file):
     from PyPDF2 import PdfReader
@@ -90,7 +79,7 @@ st.title("Deep Research AI Agent")
 st.sidebar.header("🔍 Search Options")
 query = st.sidebar.text_input("Enter your research query")
 
-option = st.sidebar.radio("Choose a search method:", ("Gemini AI", "Google Search", "Wikipedia", "Upload PDF", "Generate Diagram"))
+option = st.sidebar.radio("Choose a search method:", ("Gemini AI", "Google Search", "Wikipedia", "Upload PDF"))
 
 if option == "Gemini AI":
     if query:
@@ -123,13 +112,3 @@ elif option == "Upload PDF":
         st.subheader("PDF Analysis:")
         st.write(pdf_text)
         st.markdown(create_pdf(pdf_text), unsafe_allow_html=True)
-
-elif option == "Generate Diagram":
-    diagram_data = st.text_area("Enter diagram data for diagrams.net (XML format)")
-    if st.button("Generate Diagram"):
-        diagram_image = generate_diagram(diagram_data)
-        if diagram_image:
-            st.image(diagram_image, caption="Generated Diagram")
-            st.markdown(create_pdf("Diagram Generated"), unsafe_allow_html=True)
-        else:
-            st.error("Failed to generate diagram. Please check input format.")
