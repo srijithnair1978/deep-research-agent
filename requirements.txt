@@ -7,3 +7,6 @@ pymupdf
 graphviz
 python-docx
 wikipedia
+beautifulsoup4
+google-api-python-client
+anthropic
