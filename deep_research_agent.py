@@ -1,25 +1,23 @@
 import streamlit as st
-import openai
+import google.generativeai as genai
 import wikipedia
 import requests
 from PyPDF2 import PdfReader
 from io import BytesIO
 import base64
 
-# Load API keys from Streamlit secrets
-OPENAI_API_KEY = st.secrets["openai"]["api_key"]
+# Load Gemini API key from Streamlit secrets
+GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
+genai.configure(api_key=GEMINI_API_KEY)
 
-def chat_with_openai(prompt):
-    """Fetch response from OpenAI GPT-3.5-turbo."""
+def chat_with_gemini(prompt):
+    """Fetch response from Gemini AI."""
     try:
-        client = openai.OpenAI(api_key=OPENAI_API_KEY)
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",  # Using GPT-3.5-turbo instead of GPT-4
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response.choices[0].message.content.strip()
+        model = genai.GenerativeModel("gemini-pro")
+        response = model.generate_content(prompt)
+        return response.text if response.text else "No response from Gemini."
     except Exception as e:
-        return f"Error fetching OpenAI response: {e}"
+        return f"Error fetching Gemini AI response: {e}"
 
 def search_wikipedia(query):
     """Fetch summary from Wikipedia."""
@@ -74,9 +72,9 @@ st.title("Deep Research AI Agent Created by Srijith Nair")
 
 query = st.text_input("Enter your research query:")
 
-if st.button("Search OpenAI"):
-    st.subheader("OpenAI Response")
-    st.write(chat_with_openai(query))
+if st.button("Search Gemini AI"):
+    st.subheader("Gemini AI Response")
+    st.write(chat_with_gemini(query))
 
 if st.button("Search Wikipedia"):
     st.subheader("Wikipedia Summary")
