@@ -13,12 +13,11 @@ def chat_with_openai(prompt):
     """Fetch response from OpenAI GPT."""
     try:
         openai.api_key = OPENAI_API_KEY
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=prompt,
-            max_tokens=500
+        response = openai.ChatCompletion.create(
+            model="gpt-4",  # Using GPT-4 instead of deprecated Davinci
+            messages=[{"role": "user", "content": prompt}]
         )
-        return response["choices"][0]["text"].strip()
+        return response["choices"][0]["message"]["content"].strip()
     except Exception as e:
         return f"Error fetching OpenAI response: {e}"
 
@@ -54,30 +53,21 @@ def read_pdf(file):
 def generate_diagram(input_text):
     """Generate a diagram using Draw.io (Diagrams.net) and export as a valid PDF."""
     try:
-        diagram_code = f"""
-        <mxfile>
-            <diagram>
-                <mxGraphModel>
-                    <root>
-                        <mxCell id="0" />
-                        <mxCell id="1" parent="0" />
-                        <mxCell id="2" value="{input_text}" style="shape=ellipse;fillColor=#FF5733;" vertex="1" parent="1">
-                            <mxGeometry width="180" height="90" as="geometry" />
-                        </mxCell>
-                    </root>
-                </mxGraphModel>
-            </diagram>
-        </mxfile>
+        diagram_svg = f"""
+        <svg width="200" height="100" xmlns="http://www.w3.org/2000/svg">
+            <rect width="200" height="100" style="fill:lightblue;stroke:black;stroke-width:2" />
+            <text x="50" y="50" font-size="20" fill="black">{input_text}</text>
+        </svg>
         """
 
         # Convert to valid PDF format
         pdf_bytes = BytesIO()
-        pdf_bytes.write(diagram_code.encode('utf-8'))
+        pdf_bytes.write(diagram_svg.encode('utf-8'))
         pdf_bytes.seek(0)
 
-        return pdf_bytes
+        return pdf_bytes, diagram_svg
     except Exception as e:
-        return f"Error generating diagram: {e}"
+        return None, f"Error generating diagram: {e}"
 
 # Streamlit Interface
 st.title("Deep Research AI Agent Created by Srijith Nair")
@@ -106,11 +96,12 @@ if uploaded_file:
 st.subheader("Generate Diagram from Input")
 diagram_input = st.text_area("Enter text for diagram generation:")
 if st.button("Generate Diagram"):
-    diagram_pdf = generate_diagram(diagram_input)
+    diagram_pdf, diagram_svg = generate_diagram(diagram_input)
     
-    # Encode diagram for preview
-    encoded_diagram = base64.b64encode(diagram_pdf.getvalue()).decode('utf-8')
-    preview_html = f'<iframe src="data:application/pdf;base64,{encoded_diagram}" width="600" height="400"></iframe>'
-    st.markdown(preview_html, unsafe_allow_html=True)
-    
-    st.download_button("Download Diagram as PDF", diagram_pdf, "diagram.pdf", "application/pdf")
+    if diagram_svg:
+        st.subheader("Diagram Preview:")
+        st.markdown(f'<img src="data:image/svg+xml;base64,{base64.b64encode(diagram_svg.encode()).decode()}" width="400"/>', unsafe_allow_html=True)
+        
+        st.download_button("Download Diagram as PDF", diagram_pdf, "diagram.pdf", "application/pdf")
+    else:
+        st.error("Error generating diagram.")
