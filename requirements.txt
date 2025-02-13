@@ -7,3 +7,5 @@ mermaid
 google-api-python-client
 beautifulsoup4
 reportlab
+transformers
+huggingface_hub
