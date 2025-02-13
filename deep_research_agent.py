@@ -1,88 +1,102 @@
 import streamlit as st
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch
-import PyPDF2
+import openai
+import fitz  # PyMuPDF for PDF processing
 import requests
-from bs4 import BeautifulSoup
 import wikipedia
-import base64
 
-# Load OLAMA Model
-@st.cache_resource()
+# ---- API Keys ----
+OPENAI_API_KEY = st.secrets["openai"]["api_key"]
+GOOGLE_API_KEY = st.secrets["google"]["api_key"]
+GOOGLE_CSE_ID = st.secrets["google"]["cse_id"]
 
-def load_model():
-    model_name = "openlm-research/open_llama_3b"
-    
-    # Load tokenizer & model
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(model_name)
+# ---- Function: OpenAI Search ----
+def search_openai(query):
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": query}],
+            api_key=OPENAI_API_KEY
+        )
+        return response["choices"][0]["message"]["content"]
+    except Exception as e:
+        return f"Error fetching OpenAI response: {str(e)}"
 
-    return tokenizer, model
+# ---- Function: Google Search ----
+def search_google(query):
+    try:
+        url = "https://www.googleapis.com/customsearch/v1"
+        params = {
+            "q": query,
+            "key": GOOGLE_API_KEY,
+            "cx": GOOGLE_CSE_ID
+        }
+        response = requests.get(url, params=params)
+        results = response.json()
+        return results.get("items", [{}])[0].get("snippet", "No results found.")
+    except Exception as e:
+        return f"Error fetching Google results: {str(e)}"
 
-tokenizer, model = load_model()
-
-# Function to generate response using OLAMA
-def generate_olama_response(prompt):
-    inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
-    output = model.generate(**inputs, max_length=200)
-    return tokenizer.decode(output[0], skip_special_tokens=True)
-
-# Function to search Wikipedia
+# ---- Function: Wikipedia Search ----
 def search_wikipedia(query):
     try:
-        return wikipedia.summary(query, sentences=3)
+        return wikipedia.summary(query, sentences=2)
     except wikipedia.exceptions.DisambiguationError as e:
-        return f"Multiple results found: {e.options}"
+        return f"Disambiguation error: {e.options}"
     except wikipedia.exceptions.PageError:
         return "No Wikipedia page found."
+    except Exception as e:
+        return f"Error fetching Wikipedia results: {str(e)}"
 
-# Function to search Google (requires API key and CSE ID)
-def search_google(query):
-    GOOGLE_API_KEY = st.secrets["google"]["api_key"]
-    GOOGLE_CSE_ID = st.secrets["google"]["cse_id"]
-    url = f"https://www.googleapis.com/customsearch/v1?q={query}&key={GOOGLE_API_KEY}&cx={GOOGLE_CSE_ID}"
-    
-    response = requests.get(url)
-    data = response.json()
-    
-    if "items" in data:
-        return data["items"][0]["snippet"]
-    return "No results found."
-
-# Function to analyze uploaded PDF
-def analyze_pdf(uploaded_file):
-    pdf_reader = PyPDF2.PdfReader(uploaded_file)
+# ---- Function: Read PDF and Extract Text ----
+def extract_text_from_pdf(pdf_file):
     text = ""
-    for page in pdf_reader.pages:
-        text += page.extract_text() + "\n"
-    return text[:2000]  # Limit text size
+    with fitz.open(pdf_file) as doc:
+        for page in doc:
+            text += page.get_text()
+    return text
 
-# Function to generate Mermaid Flowchart
-def generate_mermaid_chart(text):
-    mermaid_code = f"graph TD;\n{text.replace(' ', '-->')};"
-    return mermaid_code
+# ---- Function: Generate Mermaid.js Flowchart Code ----
+def generate_mermaid_code(text):
+    summary = text[:50]  # Take first 50 characters as a summary
+    return f"""
+    ```mermaid
+    graph TD;
+        A[Start] -->|{summary}...| B[Processing];
+        B --> C[Output];
+    ```
+    """
 
-# Streamlit UI
-st.title("🔍 Deep Research AI Agent (OLAMA)")
-st.write("A powerful AI-powered research assistant.")
+# ---- Streamlit UI ----
+st.title("Deep Research AI Agent - Open AI Search")
 
-query = st.text_input("Enter your query:")
-if st.button("Search OLAMA"):
-    st.write(generate_olama_response(query))
+# ---- Search Section ----
+st.subheader("Choose Search Engine")
+search_option = st.selectbox("Select an option:", ["OpenAI Search", "Google Search", "Wikipedia Search"])
+query = st.text_input("Enter your search query:")
 
-if st.button("Search Wikipedia"):
-    st.write(search_wikipedia(query))
+if st.button("Search"):
+    if search_option == "OpenAI Search":
+        result = search_openai(query)
+    elif search_option == "Google Search":
+        result = search_google(query)
+    else:
+        result = search_wikipedia(query)
 
-if st.button("Search Google"):
-    st.write(search_google(query))
+    st.write(result)
 
-uploaded_file = st.file_uploader("Upload a PDF for analysis", type=["pdf"])
+# ---- PDF Upload Section ----
+st.subheader("Upload and Analyze PDF")
+uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
+
 if uploaded_file is not None:
-    pdf_text = analyze_pdf(uploaded_file)
-    st.write("Extracted PDF Text:", pdf_text)
+    pdf_text = extract_text_from_pdf(uploaded_file)
+    st.subheader("Extracted Text:")
+    st.text_area("PDF Content:", pdf_text, height=200)
 
-if st.button("Generate Flowchart"):
-    flowchart_code = generate_mermaid_chart(query)
-    st.write("### Flowchart:")
-    st.code(flowchart_code, language="mermaid")
+    if st.button("Generate Flowchart from PDF"):
+        mermaid_code = generate_mermaid_code(pdf_text)
+        st.subheader("Flowchart Representation:")
+        st.markdown(mermaid_code)  # Render Mermaid diagram
 
+# ---- Footer ----
+st.write("Powered by OpenAI, Google, Wikipedia & Mermaid.js")
