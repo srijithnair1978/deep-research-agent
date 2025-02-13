@@ -12,14 +12,13 @@ OPENAI_API_KEY = st.secrets["openai"]["api_key"]
 def chat_with_openai(prompt):
     """Fetch response from OpenAI GPT."""
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a helpful AI research assistant."},
-                {"role": "user", "content": prompt},
-            ]
+        openai.api_key = OPENAI_API_KEY
+        response = openai.Completion.create(
+            engine="text-davinci-003",
+            prompt=prompt,
+            max_tokens=500
         )
-        return response["choices"][0]["message"]["content"]
+        return response["choices"][0]["text"].strip()
     except Exception as e:
         return f"Error fetching OpenAI response: {e}"
 
@@ -62,8 +61,8 @@ def generate_diagram(input_text):
                     <root>
                         <mxCell id="0" />
                         <mxCell id="1" parent="0" />
-                        <mxCell id="2" value="{input_text}" style="rounded=1;fillColor=#FFCC00;" vertex="1" parent="1">
-                            <mxGeometry width="160" height="80" as="geometry" />
+                        <mxCell id="2" value="{input_text}" style="shape=ellipse;fillColor=#FF5733;" vertex="1" parent="1">
+                            <mxGeometry width="180" height="90" as="geometry" />
                         </mxCell>
                     </root>
                 </mxGraphModel>
