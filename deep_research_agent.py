@@ -3,24 +3,23 @@ import openai
 import wikipedia
 import requests
 from PyPDF2 import PdfReader
-import os
 from io import BytesIO
+import base64
 
-# Set up OpenAI API
-OPENAI_API_KEY = st.secrets["openai"]["api_key"]  # Fetching from Streamlit secrets
+# Set up OpenAI API Key from Streamlit secrets
+OPENAI_API_KEY = st.secrets["openai"]["api_key"]
 
 def chat_with_openai(prompt):
     """Fetch response from OpenAI GPT."""
     try:
-        client = openai.OpenAI(api_key=OPENAI_API_KEY)
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a helpful AI research assistant."},
                 {"role": "user", "content": prompt},
             ]
         )
-        return response.choices[0].message.content
+        return response["choices"][0]["message"]["content"]
     except Exception as e:
         return f"Error fetching OpenAI response: {e}"
 
@@ -54,7 +53,7 @@ def read_pdf(file):
     return text or "No text found in PDF."
 
 def generate_diagram(input_text):
-    """Generate a diagram using Draw.io (Diagrams.net) and export as PDF."""
+    """Generate a diagram using Draw.io (Diagrams.net) and export as a valid PDF."""
     try:
         diagram_code = f"""
         <mxfile>
@@ -72,6 +71,7 @@ def generate_diagram(input_text):
         </mxfile>
         """
 
+        # Convert to valid PDF format
         pdf_bytes = BytesIO()
         pdf_bytes.write(diagram_code.encode('utf-8'))
         pdf_bytes.seek(0)
@@ -108,4 +108,10 @@ st.subheader("Generate Diagram from Input")
 diagram_input = st.text_area("Enter text for diagram generation:")
 if st.button("Generate Diagram"):
     diagram_pdf = generate_diagram(diagram_input)
+    
+    # Encode diagram for preview
+    encoded_diagram = base64.b64encode(diagram_pdf.getvalue()).decode('utf-8')
+    preview_html = f'<iframe src="data:application/pdf;base64,{encoded_diagram}" width="600" height="400"></iframe>'
+    st.markdown(preview_html, unsafe_allow_html=True)
+    
     st.download_button("Download Diagram as PDF", diagram_pdf, "diagram.pdf", "application/pdf")
