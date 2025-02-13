@@ -7,9 +7,9 @@ from docx import Document
 from googleapiclient.discovery import build
 
 # ✅ Manually Set API Keys
-GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"
-GOOGLE_API_KEY = "YOUR_GOOGLE_API_KEY_HERE"
-GOOGLE_CSE_ID = "YOUR_GOOGLE_CSE_ID_HERE"
+GEMINI_API_KEY = "AIzaSyCgluUAIWtVRvAPtj9tZDhA3gbL4tcgPdg"
+GOOGLE_API_KEY = "AIzaSyCAFevmGzelx6_L1MrN_FwPr-HBXR9etEI"
+GOOGLE_CSE_ID = "3244f2ed221224262"
 
 # ✅ Function to call Gemini AI
 def search_gemini(query):
@@ -80,7 +80,7 @@ def generate_diagram(process_steps):
     return diagram_path
 
 # ✅ Streamlit UI
-st.title("Deep Research AI Agent")
+st.title("Deep Research AI Agent created by Srijith Nair")  # ✅ Headline Updated
 
 query = st.text_input("Enter your research topic:")
 
