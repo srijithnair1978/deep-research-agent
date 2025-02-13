@@ -6,18 +6,18 @@ from PyPDF2 import PdfReader
 from io import BytesIO
 import base64
 
-# Set up OpenAI API Key from Streamlit secrets
+# Load API keys from Streamlit secrets
 OPENAI_API_KEY = st.secrets["openai"]["api_key"]
 
 def chat_with_openai(prompt):
-    """Fetch response from OpenAI GPT."""
+    """Fetch response from OpenAI GPT using API 1.0.0 Interface."""
     try:
-        openai.api_key = OPENAI_API_KEY
-        response = openai.ChatCompletion.create(
-            model="gpt-4",  # Using GPT-4 instead of deprecated Davinci
+        client = openai.OpenAI(api_key=OPENAI_API_KEY)
+        response = client.chat.completions.create(
+            model="gpt-4",
             messages=[{"role": "user", "content": prompt}]
         )
-        return response["choices"][0]["message"]["content"].strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         return f"Error fetching OpenAI response: {e}"
 
