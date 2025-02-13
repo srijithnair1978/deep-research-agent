@@ -7,3 +7,4 @@ graphviz
 reportlab  
 PyMuPDF
 PyPDF2
+Fpdf
