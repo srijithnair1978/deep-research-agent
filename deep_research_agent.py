@@ -1,87 +1,104 @@
 import streamlit as st
 import requests
-import PyPDF2  # For PDF processing
+import wikipedia
+import PyPDF2
+import json
+import base64
 
-# ========================== GEMINI AI SETUP ==========================
-GEMINI_API_KEY = "AIzaSyCyn5LuSyrKuXMKsjNsvcP03meyhCuEMO4"  # Replace with your actual API key
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent"
+# ---- API Keys (Ensure these are set correctly) ----
+GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
+GOOGLE_API_KEY = st.secrets["google"]["api_key"]
+GOOGLE_CSE_ID = st.secrets["google"]["cse_id"]
 
-# ========================== FUNCTION TO QUERY GEMINI ==========================
-def search_gemini(query):
-    """Sends a query to Google Gemini AI and returns the response."""
-    headers = {"Content-Type": "application/json"}
-    params = {"key": GEMINI_API_KEY}
-    payload = {"contents": [{"parts": [{"text": query}]}]}
+# ---- Set Up the App ----
+st.title("Deep Research AI Agent created by Srijith Nair")
 
+# ---- Search Wikipedia Function ----
+def search_wikipedia(query):
     try:
-        response = requests.post(GEMINI_API_URL, headers=headers, params=params, json=payload)
-        response_data = response.json()
-        
-        if "candidates" in response_data:
-            return response_data["candidates"][0]["output"]
-        else:
-            return "❌ No valid response received from Gemini API. Please check API key."
-    
+        summary = wikipedia.summary(query, sentences=2)
+        return summary
     except Exception as e:
-        return f"❌ Error fetching data from Gemini AI: {str(e)}"
+        return f"Error fetching Wikipedia: {str(e)}"
 
-# ========================== MERMAID.JS DIAGRAM RENDER ==========================
-def render_mermaid_diagram(mermaid_code):
-    """Embeds Mermaid.js in Streamlit to generate diagrams."""
-    mermaid_html = f"""
-    <script type="module">
-        import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
-        mermaid.initialize({{startOnLoad:true}});
-    </script>
-    <div class="mermaid">
-        {mermaid_code}
-    </div>
-    """
-    st.components.v1.html(mermaid_html, height=500)
+# ---- Google Search Function ----
+def search_google(query):
+    url = f"https://www.googleapis.com/customsearch/v1?q={query}&key={GOOGLE_API_KEY}&cx={GOOGLE_CSE_ID}"
+    response = requests.get(url)
+    results = response.json()
+    if "items" in results:
+        return results["items"][0]["snippet"]
+    return "No results found. Check API key or CSE ID."
 
-# ========================== PDF UPLOAD & ANALYSIS ==========================
-def extract_text_from_pdf(uploaded_file):
-    """Extracts text from uploaded PDF files."""
+# ---- Gemini AI Search Function ----
+def search_gemini(query):
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
+    payload = {"contents": [{"parts": [{"text": query}]}]}
+    headers = {"Content-Type": "application/json"}
+    response = requests.post(url, headers=headers, json=payload)
     try:
+        return response.json()["candidates"][0]["content"]
+    except Exception as e:
+        return f"Error fetching Gemini AI response: {str(e)}"
+
+# ---- PDF Upload and Analysis Function ----
+def analyze_pdf(uploaded_file):
+    if uploaded_file is not None:
         pdf_reader = PyPDF2.PdfReader(uploaded_file)
         text = ""
         for page in pdf_reader.pages:
             text += page.extract_text() + "\n"
-        return text.strip()
-    except Exception as e:
-        return f"❌ Error reading PDF: {str(e)}"
+        return text[:1000]  # Limiting to first 1000 chars for efficiency
+    return "No PDF uploaded."
 
-# ========================== STREAMLIT UI ==========================
-st.title("📚 Deep Research AI Agent by **Srijith Nair**")
-st.subheader("🔍 AI-Powered Research with Gemini & Diagram Visualization using Mermaid.js")
+# ---- Mermaid Diagram Function ----
+def generate_mermaid_diagram(code):
+    return f"""
+    ```mermaid
+    {code}
+    ```
+    """
 
-# ------------------ Gemini AI Search ------------------
-st.write("### 🤖 Ask Gemini AI:")
-query = st.text_input("Enter your query for Gemini AI:")
-if st.button("Ask Gemini AI"):
-    if query.strip():
-        response = search_gemini(query)
-        st.write("### Gemini AI Response:")
-        st.success(response)
+# ---- User Inputs ----
+st.subheader("Search Options")
+query = st.text_input("Enter your query:")
+
+option = st.radio("Choose a source:", ["Google Search", "Wikipedia", "Gemini AI"])
+
+if st.button("Search"):
+    if option == "Google Search":
+        result = search_google(query)
+    elif option == "Wikipedia":
+        result = search_wikipedia(query)
     else:
-        st.error("⚠️ Please enter a question!")
+        result = search_gemini(query)
+    
+    st.write(result)
 
-# ------------------ PDF Upload & Analysis ------------------
-st.write("### 📄 Upload a PDF for Analysis:")
-uploaded_pdf = st.file_uploader("Choose a PDF file", type=["pdf"])
-if uploaded_pdf:
-    st.write("✅ PDF Uploaded Successfully! Extracted Text Below:")
-    extracted_text = extract_text_from_pdf(uploaded_pdf)
-    st.text_area("Extracted Text:", extracted_text, height=300)
+# ---- PDF Upload ----
+st.subheader("Upload a PDF for Analysis")
+uploaded_file = st.file_uploader("Upload PDF", type="pdf")
+if uploaded_file:
+    pdf_analysis = analyze_pdf(uploaded_file)
+    st.write(pdf_analysis)
 
-# ------------------ Mermaid.js Diagram Generator ------------------
-st.write("### 📊 Generate a Diagram with Mermaid.js:")
-mermaid_code = st.text_area("Enter Mermaid.js Code Below:", """
-graph TD;
-A[Start] --> B{Decision};
-B -->|Yes| C[Continue];
-B -->|No| D[Stop];
-""")
-
+# ---- Mermaid Diagram Generation ----
+st.subheader("Generate a Mermaid Diagram")
+diagram_code = st.text_area("Enter Mermaid diagram code:")
 if st.button("Generate Diagram"):
-    render_mermaid_diagram(mermaid_code)
+    if diagram_code:
+        mermaid_output = generate_mermaid_diagram(diagram_code)
+        st.markdown(mermaid_output, unsafe_allow_html=True)
+    else:
+        st.error("Please enter a valid Mermaid diagram code.")
+
+# ---- Download Response as Word Document ----
+def create_download_link(content, filename):
+    """Create a downloadable link for a file"""
+    b64 = base64.b64encode(content.encode()).decode()
+    href = f'<a href="data:file/txt;base64,{b64}" download="{filename}">📥 Download as Word Document</a>'
+    return href
+
+if st.button("Download as Word Document"):
+    result_text = query + "\n\n" + result
+    st.markdown(create_download_link(result_text, "Deep_Research_Agent_Output.docx"), unsafe_allow_html=True)
