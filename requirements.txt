@@ -2,6 +2,7 @@ streamlit
 requests
 wikipedia
 PyPDF2
+Open
 fpdf
 mermaid
 google-api-python-client
