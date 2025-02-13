@@ -9,7 +9,6 @@ import base64
 
 # Load OLAMA Model
 @st.cache_resource()
-from transformers import AutoTokenizer, AutoModelForCausalLM
 
 def load_model():
     model_name = "openlm-research/open_llama_3b"
