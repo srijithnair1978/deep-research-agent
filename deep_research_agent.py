@@ -1,93 +1,87 @@
 import streamlit as st
 import requests
-import json
-import wikipedia
-from PyPDF2 import PdfReader
+import PyPDF2  # For PDF processing
 
-# Set page title
-st.title("Deep Research AI Agent created by Srijith Nair")
+# ========================== GEMINI AI SETUP ==========================
+GEMINI_API_KEY = "AIzaSyCyn5LuSyrKuXMKsjNsvcP03meyhCuEMO4"  # Replace with your actual API key
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent"
 
-# Load API keys from Streamlit secrets
-CLAUDE_API_KEY = st.secrets["claude"]["api_key"]
-GOOGLE_API_KEY = st.secrets["google"]["api_key"]
-GOOGLE_CSE_ID = st.secrets["google"]["cse_id"]
+# ========================== FUNCTION TO QUERY GEMINI ==========================
+def search_gemini(query):
+    """Sends a query to Google Gemini AI and returns the response."""
+    headers = {"Content-Type": "application/json"}
+    params = {"key": GEMINI_API_KEY}
+    payload = {"contents": [{"parts": [{"text": query}]}]}
 
-# Function to search Wikipedia
-def search_wikipedia(query):
     try:
-        summary = wikipedia.summary(query, sentences=2)
-        return summary
-    except wikipedia.exceptions.DisambiguationError as e:
-        return f"Disambiguation Error: {e.options}"
-    except wikipedia.exceptions.PageError:
-        return "No page found for the given query."
+        response = requests.post(GEMINI_API_URL, headers=headers, params=params, json=payload)
+        response_data = response.json()
+        
+        if "candidates" in response_data:
+            return response_data["candidates"][0]["output"]
+        else:
+            return "❌ No valid response received from Gemini API. Please check API key."
+    
+    except Exception as e:
+        return f"❌ Error fetching data from Gemini AI: {str(e)}"
 
-# Function to search Google using Custom Search API
-def search_google(query):
-    search_url = "https://www.googleapis.com/customsearch/v1"
-    params = {"key": GOOGLE_API_KEY, "cx": GOOGLE_CSE_ID, "q": query}
-    response = requests.get(search_url, params=params)
-    if response.status_code == 200:
-        results = response.json()
-        return results.get("items", ["No results found"])
-    else:
-        return f"Google Search API Error: {response.status_code}"
-
-# Function to get Claude AI response
-def search_claude(query):
-    headers = {"Authorization": f"Bearer {CLAUDE_API_KEY}", "Content-Type": "application/json"}
-    payload = json.dumps({"prompt": query})
-    response = requests.post("https://api.anthropic.com/v1/complete", headers=headers, data=payload)
-    if response.status_code == 200:
-        return response.json().get("completion", "No Claude AI response available.")
-    else:
-        return f"Claude API Error: {response.status_code}"
-
-# Function to analyze uploaded PDF
-def analyze_pdf(uploaded_file):
-    reader = PdfReader(uploaded_file)
-    text = "".join([page.extract_text() for page in reader.pages if page.extract_text()])
-    return text[:2000]  # Limit characters to avoid overload
-
-# Function to generate a D3.js-based visualization
-def generate_d3_chart(data):
-    d3_script = f"""
-    <script>
-        var data = {json.dumps(data)};
-        var svg = d3.select("body").append("svg").attr("width", 500).attr("height", 500);
-        svg.selectAll("circle")
-            .data(data)
-            .enter()
-            .append("circle")
-            .attr("cx", (d, i) => (i + 1) * 50)
-            .attr("cy", 250)
-            .attr("r", d => d.value * 5);
+# ========================== MERMAID.JS DIAGRAM RENDER ==========================
+def render_mermaid_diagram(mermaid_code):
+    """Embeds Mermaid.js in Streamlit to generate diagrams."""
+    mermaid_html = f"""
+    <script type="module">
+        import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+        mermaid.initialize({{startOnLoad:true}});
     </script>
+    <div class="mermaid">
+        {mermaid_code}
+    </div>
     """
-    return d3_script
+    st.components.v1.html(mermaid_html, height=500)
 
-# Interface
-query = st.text_input("Enter your search query:")
-search_option = st.selectbox("Choose a source:", ["Wikipedia", "Google", "Claude (Open AI)"])
+# ========================== PDF UPLOAD & ANALYSIS ==========================
+def extract_text_from_pdf(uploaded_file):
+    """Extracts text from uploaded PDF files."""
+    try:
+        pdf_reader = PyPDF2.PdfReader(uploaded_file)
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text() + "\n"
+        return text.strip()
+    except Exception as e:
+        return f"❌ Error reading PDF: {str(e)}"
 
-if st.button("Search"):
-    if search_option == "Wikipedia":
-        st.write(search_wikipedia(query))
-    elif search_option == "Google":
-        results = search_google(query)
-        for result in results:
-            st.write(result.get("title", "No Title"), result.get("link", "No Link"))
-    elif search_option == "Claude (Open AI)":
-        st.write(search_claude(query))
+# ========================== STREAMLIT UI ==========================
+st.title("📚 Deep Research AI Agent by **Srijith Nair**")
+st.subheader("🔍 AI-Powered Research with Gemini & Diagram Visualization using Mermaid.js")
 
-# File upload for PDF analysis
-uploaded_file = st.file_uploader("Upload a PDF for analysis", type="pdf")
-if uploaded_file:
-    st.write("Analyzing PDF...")
-    st.write(analyze_pdf(uploaded_file))
+# ------------------ Gemini AI Search ------------------
+st.write("### 🤖 Ask Gemini AI:")
+query = st.text_input("Enter your query for Gemini AI:")
+if st.button("Ask Gemini AI"):
+    if query.strip():
+        response = search_gemini(query)
+        st.write("### Gemini AI Response:")
+        st.success(response)
+    else:
+        st.error("⚠️ Please enter a question!")
 
-# D3.js visualization
-st.subheader("Generate Data Visualization")
-d3_data = [{"value": i} for i in range(1, 6)]
+# ------------------ PDF Upload & Analysis ------------------
+st.write("### 📄 Upload a PDF for Analysis:")
+uploaded_pdf = st.file_uploader("Choose a PDF file", type=["pdf"])
+if uploaded_pdf:
+    st.write("✅ PDF Uploaded Successfully! Extracted Text Below:")
+    extracted_text = extract_text_from_pdf(uploaded_pdf)
+    st.text_area("Extracted Text:", extracted_text, height=300)
+
+# ------------------ Mermaid.js Diagram Generator ------------------
+st.write("### 📊 Generate a Diagram with Mermaid.js:")
+mermaid_code = st.text_area("Enter Mermaid.js Code Below:", """
+graph TD;
+A[Start] --> B{Decision};
+B -->|Yes| C[Continue];
+B -->|No| D[Stop];
+""")
+
 if st.button("Generate Diagram"):
-    st.components.v1.html(generate_d3_chart(d3_data), height=500)
+    render_mermaid_diagram(mermaid_code)
