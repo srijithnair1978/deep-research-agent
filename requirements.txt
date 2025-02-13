@@ -11,3 +11,4 @@ beautifulsoup4
 google-api-python-client
 anthropic
 PyPDF2
+Pdf
